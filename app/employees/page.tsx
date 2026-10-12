@@ -1,0 +1,77 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase, Employee } from '@/lib/supabase';
+import { Trophy, Star } from 'lucide-react';
+
+const roleLabels: Record<string, string> = {
+  admin: 'Администратор',
+  receptionist: 'Ресепшен',
+  housekeeping: 'Горничная',
+  maintenance: 'Техник',
+  manager: 'Менеджер',
+};
+
+function getLevelName(level: number) {
+  if (level >= 5) return 'Легенда отеля';
+  if (level >= 4) return 'Мастер сервиса';
+  if (level >= 3) return 'Опытный сотрудник';
+  if (level >= 2) return 'Стажёр+';
+  return 'Новичок';
+}
+
+export default function EmployeesPage() {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from('employees').select('*').order('points', { ascending: false });
+      setEmployees(data || []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-hotel-900">Сотрудники</h1>
+        <p className="text-slate-600">Рейтинг и геймификация персонала</p>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-slate-500">Загрузка...</div>
+      ) : (
+        <div className="space-y-4">
+          {employees.map((emp, idx) => (
+            <div key={emp.id} className={`bg-white rounded-xl shadow p-5 flex items-center gap-4 ${idx === 0 ? 'ring-2 ring-amber-400' : ''}`}>
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-hotel-100 text-hotel-700 font-bold text-lg relative">
+                {emp.name.charAt(0)}
+                {idx < 3 && <span className="absolute -top-1 -right-1 text-xs">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-lg">{emp.name}</p>
+                  {idx === 0 && <Trophy className="w-5 h-5 text-amber-500" />}
+                </div>
+                <p className="text-sm text-slate-500">{roleLabels[emp.role] || emp.role}</p>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-hotel-600 font-bold">{emp.points} баллов</span>
+                  <span className="text-sm text-slate-500">Уровень {emp.level} • {getLevelName(emp.level)}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center gap-1 text-amber-500">
+                  <Star className="w-4 h-4 fill-current" />
+                  <span className="font-medium">{Math.floor(emp.points / 100)}</span>
+                </div>
+                <p className="text-xs text-slate-400">значков</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
