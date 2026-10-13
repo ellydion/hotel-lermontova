@@ -14,10 +14,12 @@ export type Room = {
   capacity: number;
   floor: number | null;
   amenities: string[];
+  photo_url: string | null;
 };
 
 export type Employee = {
   id: string;
+  auth_user_id: string | null;
   name: string;
   email: string | null;
   role: 'admin' | 'receptionist' | 'housekeeping' | 'maintenance' | 'manager';
@@ -45,6 +47,29 @@ export type Task = {
   room_id: string | null;
   points: number;
   status: 'pending' | 'in_progress' | 'completed';
-  type: 'cleaning' | 'checkin' | 'checkout' | 'maintenance' | 'inventory' | 'other';
+  type: string;
+  is_daily: boolean;
   completed_at: string | null;
+};
+
+export type Booking = {
+  id: string;
+  room_id: string;
+  guest_name: string;
+  guest_phone: string | null;
+  guest_email: string | null;
+  check_in: string;
+  check_out: string;
+  status: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type Achievement = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  points_required: number;
+  icon: string;
 };

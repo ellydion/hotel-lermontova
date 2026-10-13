@@ -1,9 +1,8 @@
--- Схема базы данных для Отеля Лермонтова
+-- Обновлённая схема для Отеля Лермонтова (v2)
+-- Выполните в Supabase SQL Editor (можно поверх предыдущей, или создайте новый проект)
 
--- Включение расширений
 create extension if not exists "uuid-ossp";
 
--- Таблица номеров
 create table if not exists rooms (
   id uuid primary key default uuid_generate_v4(),
   number text not null unique,
@@ -13,13 +12,14 @@ create table if not exists rooms (
   capacity integer not null default 2,
   floor integer,
   amenities jsonb default '[]'::jsonb,
+  photo_url text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- Таблица сотрудников
 create table if not exists employees (
   id uuid primary key default uuid_generate_v4(),
+  auth_user_id uuid references auth.users(id) on delete set null,
   name text not null,
   email text unique,
   role text not null check (role in ('admin', 'receptionist', 'housekeeping', 'maintenance', 'manager')),
@@ -30,7 +30,6 @@ create table if not exists employees (
   created_at timestamptz default now()
 );
 
--- Таблица инвентаря
 create table if not exists inventory (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
@@ -43,7 +42,6 @@ create table if not exists inventory (
   updated_at timestamptz default now()
 );
 
--- Таблица заданий (геймификация)
 create table if not exists tasks (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
@@ -52,24 +50,43 @@ create table if not exists tasks (
   room_id uuid references rooms(id) on delete set null,
   points integer not null default 10,
   status text not null default 'pending' check (status in ('pending', 'in_progress', 'completed')),
-  type text not null check (type in ('cleaning', 'checkin', 'checkout', 'maintenance', 'inventory', 'other')),
+  type text not null check (type in ('cleaning', 'checkin', 'checkout', 'maintenance', 'inventory', 'other', 'daily')),
+  is_daily boolean default false,
   completed_at timestamptz,
   created_at timestamptz default now()
 );
 
--- Таблица бронирований (опционально)
 create table if not exists bookings (
   id uuid primary key default uuid_generate_v4(),
   room_id uuid references rooms(id),
   guest_name text not null,
   guest_phone text,
+  guest_email text,
   check_in date not null,
   check_out date not null,
   status text default 'confirmed' check (status in ('confirmed', 'checked_in', 'checked_out', 'cancelled')),
+  notes text,
+  created_by uuid references employees(id),
   created_at timestamptz default now()
 );
 
--- Функция обновления updated_at
+create table if not exists achievements (
+  id uuid primary key default uuid_generate_v4(),
+  code text unique not null,
+  name text not null,
+  description text,
+  points_required integer default 0,
+  icon text default '🏆',
+  created_at timestamptz default now()
+);
+
+create table if not exists employee_achievements (
+  employee_id uuid references employees(id) on delete cascade,
+  achievement_id uuid references achievements(id) on delete cascade,
+  unlocked_at timestamptz default now(),
+  primary key (employee_id, achievement_id)
+);
+
 create or replace function update_updated_at_column()
 returns trigger as $$
 begin
@@ -78,13 +95,14 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists update_rooms_updated_at on rooms;
 create trigger update_rooms_updated_at before update on rooms
   for each row execute function update_updated_at_column();
 
+drop trigger if exists update_inventory_updated_at on inventory;
 create trigger update_inventory_updated_at before update on inventory
   for each row execute function update_updated_at_column();
 
--- Демо-данные
 insert into rooms (number, type, status, price_per_night, capacity, floor) values
   ('101', 'standard', 'available', 4500, 2, 1),
   ('102', 'standard', 'occupied', 4500, 2, 1),
@@ -111,13 +129,10 @@ insert into inventory (name, category, quantity, min_quantity, location) values
   ('Чай', 'мини-бар', 60, 10, 'warehouse')
 on conflict do nothing;
 
-insert into tasks (title, description, points, type, status) values
-  ('Уборка номера 201', 'Полная уборка после выезда', 25, 'cleaning', 'pending'),
-  ('Проверка мини-бара 102', 'Пополнить запасы', 10, 'inventory', 'pending'),
-  ('Ремонт кондиционера 302', 'Не работает охлаждение', 40, 'maintenance', 'pending')
-on conflict do nothing;
-
-create index if not exists idx_rooms_status on rooms(status);
-create index if not exists idx_tasks_employee on tasks(employee_id);
-create index if not exists idx_tasks_status on tasks(status);
-create index if not exists idx_inventory_quantity on inventory(quantity);
+insert into achievements (code, name, description, points_required, icon) values
+  ('first_task', 'Первое задание', 'Выполнили первое задание', 0, '🎯'),
+  ('points_100', 'Сотня', 'Набрали 100 баллов', 100, '💯'),
+  ('points_500', 'Полтысячи', 'Набрали 500 баллов', 500, '🔥'),
+  ('cleaner', 'Чистюля', 'Выполнили 10 уборок', 0, '🧹'),
+  ('legend', 'Легенда', 'Достигли 5 уровня', 0, '👑')
+on conflict (code) do nothing;
