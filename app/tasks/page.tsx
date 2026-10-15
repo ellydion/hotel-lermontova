@@ -28,10 +28,10 @@ export default function TasksPage() {
     setLoading(true);
     const [tasksRes, empRes] = await Promise.all([
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-      supabase.from('employees').select('id, name, points, level'),
+      supabase.from('employees').select('*'),
     ]);
     setTasks(tasksRes.data || []);
-    setEmployees(empRes.data || []);
+    setEmployees((empRes.data as Employee[]) || []);
     setLoading(false);
   };
 
