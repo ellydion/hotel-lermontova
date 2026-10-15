@@ -56,9 +56,9 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-10 w-64 bg-slate-200 rounded-lg animate-pulse" />
+        <div className="h-10 w-64 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-white rounded-2xl shadow-soft animate-pulse" />)}
+          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-white dark:bg-slate-800 rounded-2xl shadow-soft animate-pulse" />)}
         </div>
       </div>
     );
@@ -66,10 +66,10 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-2xl shadow-soft p-8 text-center">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-8 text-center">
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
-        <p className="text-slate-700 font-medium">{error}</p>
-        <button onClick={load} className="mt-4 px-5 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-800">
+        <p className="text-slate-700 dark:text-slate-300 font-medium">{error}</p>
+        <button onClick={load} className="mt-4 px-5 py-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white rounded-lg text-sm">
           Повторить
         </button>
       </div>
@@ -80,10 +80,10 @@ export default function Dashboard() {
     <div className="space-y-8">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Дашборд</h1>
-          <p className="text-slate-500 mt-1">Обзор состояния отеля Лермонтова</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Дашборд</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Обзор состояния отеля Лермонтова</p>
         </div>
-        <button onClick={load} className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900">
+        <button onClick={load} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
           <RefreshCw className="w-4 h-4" /> Обновить
         </button>
       </div>
@@ -96,8 +96,8 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-soft p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-5 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
             <Building2 className="w-5 h-5 text-slate-500" /> Статусы номеров
           </h2>
           <div className="space-y-3">
@@ -107,8 +107,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-soft p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-5 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
             <Trophy className="w-5 h-5 text-hotel-accent" /> Лидер рейтинга
           </h2>
           {stats.topEmployee ? (
@@ -117,9 +117,9 @@ export default function Dashboard() {
                 {stats.topEmployee.name.charAt(0)}
               </div>
               <div>
-                <p className="font-semibold text-lg text-slate-900">{stats.topEmployee.name}</p>
+                <p className="font-semibold text-lg text-slate-900 dark:text-white">{stats.topEmployee.name}</p>
                 <p className="text-slate-500 text-sm capitalize">{stats.topEmployee.role}</p>
-                <p className="text-slate-800 font-semibold mt-1">{stats.topEmployee.points} баллов <span className="text-slate-400 font-normal">• Ур. {stats.topEmployee.level}</span></p>
+                <p className="text-slate-800 dark:text-slate-200 font-semibold mt-1">{stats.topEmployee.points} баллов <span className="text-slate-400 font-normal">• Ур. {stats.topEmployee.level}</span></p>
               </div>
             </div>
           ) : (
@@ -129,11 +129,11 @@ export default function Dashboard() {
       </div>
 
       {stats.inventoryLow > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-medium text-amber-900">Низкий запас инвентаря</p>
-            <p className="text-sm text-amber-800 mt-0.5">{stats.inventoryLow} позиций требуют пополнения.</p>
+            <p className="font-medium text-amber-900 dark:text-amber-200">Низкий запас инвентаря</p>
+            <p className="text-sm text-amber-800 dark:text-amber-300 mt-0.5">{stats.inventoryLow} позиций требуют пополнения.</p>
           </div>
         </div>
       )}
@@ -149,11 +149,11 @@ function StatCard({ icon, title, value, subtitle, accent }: any) {
     violet: 'bg-violet-500',
   };
   return (
-    <div className="bg-white rounded-2xl shadow-soft p-5 hover:shadow-card transition-shadow">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-5 hover:shadow-card transition-shadow">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-500 font-medium">{title}</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{value}</p>
           <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
         </div>
         <div className={`${colors[accent]} text-white p-2.5 rounded-xl`}>{icon}</div>
@@ -167,10 +167,10 @@ function StatusBar({ label, count, total, color }: any) {
   return (
     <div>
       <div className="flex justify-between text-sm mb-1.5">
-        <span className="text-slate-600">{label}</span>
-        <span className="font-medium text-slate-900">{count} <span className="text-slate-400 font-normal">({pct}%)</span></span>
+        <span className="text-slate-600 dark:text-slate-400">{label}</span>
+        <span className="font-medium text-slate-900 dark:text-white">{count} <span className="text-slate-400 font-normal">({pct}%)</span></span>
       </div>
-      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
         <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
       </div>
     </div>
