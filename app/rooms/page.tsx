@@ -2,33 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, Room } from '@/lib/supabase';
-import { RefreshCw, Upload } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
-const statusColors: Record<string, string> = {
-  available: 'bg-emerald-500',
-  occupied: 'bg-blue-500',
-  cleaning: 'bg-amber-500',
-  maintenance: 'bg-red-500',
-};
-
-const statusLabels: Record<string, string> = {
-  available: 'Свободен',
-  occupied: 'Занят',
-  cleaning: 'Уборка',
-  maintenance: 'Ремонт',
-};
-
-const typeLabels: Record<string, string> = {
-  standard: 'Стандарт',
-  deluxe: 'Делюкс',
-  suite: 'Люкс',
-  family: 'Семейный',
+const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
+  available: { color: 'bg-emerald-500', label: 'Свободен', bg: 'bg-emerald-50' },
+  occupied: { color: 'bg-blue-500', label: 'Занят', bg: 'bg-blue-50' },
+  cleaning: { color: 'bg-amber-400', label: 'Уборка', bg: 'bg-amber-50' },
+  maintenance: { color: 'bg-red-500', label: 'Ремонт', bg: 'bg-red-50' },
 };
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [floor, setFloor] = useState('all');
 
   const load = async () => {
     setLoading(true);
@@ -44,56 +31,88 @@ export default function RoomsPage() {
     load();
   };
 
-  const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
+  const floors = Array.from(new Set(rooms.map(r => r.floor).filter(Boolean))).sort();
+  const filtered = rooms.filter(r => {
+    if (filter !== 'all' && r.status !== filter) return false;
+    if (floor !== 'all' && String(r.floor) !== floor) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Номера</h1>
-          <p className="text-slate-500 mt-1">Визуальная карта номерного фонда</p>
+          <h1 className="text-3xl font-bold">Карта номеров</h1>
+          <p className="text-slate-500 text-sm mt-1">Визуальный обзор статусов</p>
         </div>
-        <button onClick={load} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm">
+        <button onClick={load} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm self-start">
           <RefreshCw className="w-4 h-4" /> Обновить
         </button>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {['all', 'available', 'occupied', 'cleaning', 'maintenance'].map(s => (
+      {/* Legend */}
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(statusConfig).map(([key, cfg]) => (
           <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium ${
-              filter === s ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200'
+            key={key}
+            onClick={() => setFilter(filter === key ? 'all' : key)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 ${
+              filter === key ? 'ring-2 ring-offset-1 ring-slate-900' : ''
+            } ${cfg.bg}`}
+          >
+            <span className={`w-3 h-3 rounded ${cfg.color}`} />
+            {cfg.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Floor filter */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setFloor('all')}
+          className={`px-3 py-1 rounded-lg text-sm ${
+            floor === 'all' ? 'bg-slate-900 text-white' : 'bg-white border'
+          }`}
+        >
+          Все этажи
+        </button>
+        {floors.map(f => (
+          <button
+            key={f}
+            onClick={() => setFloor(String(f))}
+            className={`px-3 py-1 rounded-lg text-sm ${
+              floor === String(f) ? 'bg-slate-900 text-white' : 'bg-white border'
             }`}
           >
-            {s === 'all' ? 'Все' : statusLabels[s]}
+            Этаж {f}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-slate-400">Загрузка...</div>
+        <div className="text-center py-16 text-slate-400">Загрузка карты...</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {filtered.map(room => (
-            <div
-              key={room.id}
-              className={`rounded-xl p-3 text-white ${statusColors[room.status]} shadow-sm hover:shadow-md transition`}
-            >
-              <p className="text-xl font-bold">{room.number}</p>
-              <p className="text-xs opacity-90 mt-1">{typeLabels[room.type]}</p>
-              <p className="text-[11px] mt-2 opacity-80">{statusLabels[room.status]}</p>
-              <div className="mt-3 flex gap-1">
-                {room.status !== 'available' && (
-                  <button onClick={() => updateStatus(room.id, 'available')} className="text-[10px] bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded">Своб</button>
-                )}
-                {room.status !== 'cleaning' && (
-                  <button onClick={() => updateStatus(room.id, 'cleaning')} className="text-[10px] bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded">Убор</button>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          {filtered.map(room => {
+            const cfg = statusConfig[room.status] || statusConfig.available;
+            return (
+              <div
+                key={room.id}
+                className={`rounded-xl border p-3 ${cfg.bg} hover:shadow-md transition cursor-pointer`}
+                onClick={() => updateStatus(room.id, room.status === 'available' ? 'occupied' : 'available')}
+              >
+                <div className="flex items-start justify-between">
+                  <p className="text-2xl font-bold">{room.number}</p>
+                  <span className={`w-3 h-3 rounded-full ${cfg.color} mt-1`} />
+                </div>
+                <p className="text-xs text-slate-600 mt-1 capitalize">{room.type}</p>
+                <p className="text-[11px] text-slate-500 mt-2">{cfg.label}</p>
+                {room.status === 'occupied' && (
+                  <p className="text-[11px] font-medium text-blue-700 mt-1 truncate">Гость</p>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
