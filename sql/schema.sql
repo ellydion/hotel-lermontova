@@ -3,6 +3,7 @@
 
 create extension if not exists "uuid-ossp";
 
+-- Номера (+ фото)
 create table if not exists rooms (
   id uuid primary key default uuid_generate_v4(),
   number text not null unique,
@@ -17,6 +18,7 @@ create table if not exists rooms (
   updated_at timestamptz default now()
 );
 
+-- Сотрудники (+ связь с auth)
 create table if not exists employees (
   id uuid primary key default uuid_generate_v4(),
   auth_user_id uuid references auth.users(id) on delete set null,
@@ -30,6 +32,7 @@ create table if not exists employees (
   created_at timestamptz default now()
 );
 
+-- Инвентарь
 create table if not exists inventory (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
@@ -42,6 +45,7 @@ create table if not exists inventory (
   updated_at timestamptz default now()
 );
 
+-- Задания
 create table if not exists tasks (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
@@ -56,6 +60,7 @@ create table if not exists tasks (
   created_at timestamptz default now()
 );
 
+-- Бронирования
 create table if not exists bookings (
   id uuid primary key default uuid_generate_v4(),
   room_id uuid references rooms(id),
@@ -70,6 +75,7 @@ create table if not exists bookings (
   created_at timestamptz default now()
 );
 
+-- Ачивки
 create table if not exists achievements (
   id uuid primary key default uuid_generate_v4(),
   code text unique not null,
@@ -87,6 +93,7 @@ create table if not exists employee_achievements (
   primary key (employee_id, achievement_id)
 );
 
+-- Триггеры updated_at
 create or replace function update_updated_at_column()
 returns trigger as $$
 begin
@@ -103,6 +110,7 @@ drop trigger if exists update_inventory_updated_at on inventory;
 create trigger update_inventory_updated_at before update on inventory
   for each row execute function update_updated_at_column();
 
+-- Демо-данные
 insert into rooms (number, type, status, price_per_night, capacity, floor) values
   ('101', 'standard', 'available', 4500, 2, 1),
   ('102', 'standard', 'occupied', 4500, 2, 1),
@@ -136,3 +144,6 @@ insert into achievements (code, name, description, points_required, icon) values
   ('cleaner', 'Чистюля', 'Выполнили 10 уборок', 0, '🧹'),
   ('legend', 'Легенда', 'Достигли 5 уровня', 0, '👑')
 on conflict (code) do nothing;
+
+-- Storage bucket для фото (выполнить отдельно в Storage UI или SQL):
+-- insert into storage.buckets (id, name, public) values ('room-photos', 'room-photos', true);
