@@ -22,10 +22,10 @@ export default function BookingsPage() {
     setLoading(true);
     const [bRes, rRes] = await Promise.all([
       supabase.from('bookings').select('*').order('check_in', { ascending: false }),
-      supabase.from('rooms').select('id, number, status').order('number'),
+      supabase.from('rooms').select('*').order('number'),
     ]);
     setBookings(bRes.data || []);
-    setRooms(rRes.data || []);
+    setRooms((rRes.data as Room[]) || []);
     setLoading(false);
   };
 
