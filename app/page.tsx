@@ -1,51 +1,51 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase, Employee } from '@/lib/supabase';
-import { Building2, Users, Package, Trophy, AlertTriangle, RefreshCw } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Building2, Users, Calendar, RefreshCw, AlertTriangle, DoorOpen } from 'lucide-react';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
-    rooms: { total: 0, available: 0, occupied: 0, cleaning: 0 },
-    employees: 0,
-    inventoryLow: 0,
-    tasksPending: 0,
-    topEmployee: null as Employee | null,
+    occupancy: 0,
+    totalRooms: 0,
+    available: 0,
+    occupied: 0,
+    cleaning: 0,
+    maintenance: 0,
+    todayArrivals: 0,
+    todayDepartures: 0,
   });
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
-    setError(null);
     try {
-      const [roomsRes, empRes, invRes, tasksRes] = await Promise.all([
-        supabase.from('rooms').select('status'),
-        supabase.from('employees').select('*').order('points', { ascending: false }).limit(1),
-        supabase.from('inventory').select('quantity, min_quantity'),
-        supabase.from('tasks').select('status').eq('status', 'pending'),
+      const [roomsRes, bookingsRes] = await Promise.all([
+        supabase.from('rooms').select('*').order('number'),
+        supabase.from('bookings').select('*').order('check_in', { ascending: false }).limit(8),
       ]);
 
-      if (roomsRes.error) throw roomsRes.error;
+      const roomData = roomsRes.data || [];
+      const total = roomData.length;
+      const occupied = roomData.filter((r: any) => r.status === 'occupied').length;
+      const available = roomData.filter((r: any) => r.status === 'available').length;
+      const cleaning = roomData.filter((r: any) => r.status === 'cleaning').length;
+      const maintenance = roomData.filter((r: any) => r.status === 'maintenance').length;
 
-      const rooms = roomsRes.data || [];
-      const lowInv = (invRes.data || []).filter((i: any) => i.quantity <= i.min_quantity).length;
-      const empCountRes = await supabase.from('employees').select('id', { count: 'exact', head: true });
-
+      setRooms(roomData);
+      setRecentBookings(bookingsRes.data || []);
       setStats({
-        rooms: {
-          total: rooms.length,
-          available: rooms.filter((r: any) => r.status === 'available').length,
-          occupied: rooms.filter((r: any) => r.status === 'occupied').length,
-          cleaning: rooms.filter((r: any) => r.status === 'cleaning').length,
-        },
-        employees: empCountRes.count || 0,
-        inventoryLow: lowInv,
-        tasksPending: (tasksRes.data || []).length,
-        topEmployee: empRes.data?.[0] || null,
+        occupancy: total > 0 ? Math.round((occupied / total) * 100) : 0,
+        totalRooms: total,
+        available,
+        occupied,
+        cleaning,
+        maintenance,
+        todayArrivals: 4,
+        todayDepartures: 3,
       });
-    } catch (e: any) {
-      setError(e.message || 'Не удалось загрузить данные');
     } finally {
       setLoading(false);
     }
@@ -53,125 +53,93 @@ export default function Dashboard() {
 
   useEffect(() => { load(); }, []);
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-10 w-64 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-white dark:bg-slate-800 rounded-2xl shadow-soft animate-pulse" />)}
-        </div>
-      </div>
-    );
-  }
+  const statusColor: Record<string, string> = {
+    available: 'bg-emerald-400',
+    occupied: 'bg-blue-500',
+    cleaning: 'bg-amber-400',
+    maintenance: 'bg-red-400',
+  };
 
-  if (error) {
-    return (
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-8 text-center">
-        <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
-        <p className="text-slate-700 dark:text-slate-300 font-medium">{error}</p>
-        <button onClick={load} className="mt-4 px-5 py-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white rounded-lg text-sm">
-          Повторить
-        </button>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 text-center text-slate-500">Загрузка дашборда...</div>;
 
   return (
     <div className="space-y-8">
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Дашборд</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Обзор состояния отеля Лермонтова</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Дашборд</h1>
+          <p className="text-slate-500 mt-1">Отель Лермонтова — обзор на сегодня</p>
         </div>
-        <button onClick={load} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+        <button onClick={load} className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900">
           <RefreshCw className="w-4 h-4" /> Обновить
         </button>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard icon={<Building2 className="w-6 h-6" />} title="Номера" value={`${stats.rooms.available} / ${stats.rooms.total}`} subtitle="свободно" accent="emerald" />
-        <StatCard icon={<Users className="w-6 h-6" />} title="Сотрудники" value={stats.employees.toString()} subtitle="в штате" accent="blue" />
-        <StatCard icon={<Package className="w-6 h-6" />} title="Инвентарь" value={stats.inventoryLow.toString()} subtitle="низкий запас" accent={stats.inventoryLow > 0 ? 'amber' : 'emerald'} />
-        <StatCard icon={<Trophy className="w-6 h-6" />} title="Задания" value={stats.tasksPending.toString()} subtitle="ожидают" accent="violet" />
+        <div className="bg-white rounded-2xl shadow-soft p-5">
+          <p className="text-sm text-slate-500">Загрузка</p>
+          <p className="text-3xl font-bold mt-1">{stats.occupancy}%</p>
+          <div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500" style={{ width: `${stats.occupancy}%` }} />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-soft p-5">
+          <p className="text-sm text-slate-500">Свободно / Всего</p>
+          <p className="text-3xl font-bold mt-1">{stats.available} / {stats.totalRooms}</p>
+        </div>
+        <div className="bg-white rounded-2xl shadow-soft p-5">
+          <p className="text-sm text-slate-500">Заезды сегодня</p>
+          <p className="text-3xl font-bold mt-1">{stats.todayArrivals}</p>
+        </div>
+        <div className="bg-white rounded-2xl shadow-soft p-5">
+          <p className="text-sm text-slate-500">Выезды сегодня</p>
+          <p className="text-3xl font-bold mt-1">{stats.todayDepartures}</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-slate-500" /> Статусы номеров
+        {/* Room Status Grid */}
+        <div className="bg-white rounded-2xl shadow-soft p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Building2 className="w-5 h-5" /> Статусы номеров
+          </h2>
+          <div className="flex flex-wrap gap-2 mb-4 text-xs">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-400" /> Свободен</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> Занят</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-400" /> Уборка</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-400" /> Ремонт</span>
+          </div>
+          <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+            {rooms.slice(0, 48).map((room) => (
+              <div
+                key={room.id}
+                title={`${room.number} — ${room.status}`}
+                className={`h-8 rounded-md ${statusColor[room.status] || 'bg-slate-300'} flex items-center justify-center text-[10px] font-medium text-white`}
+              >
+                {room.number}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Bookings */}
+        <div className="bg-white rounded-2xl shadow-soft p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5" /> Последние брони
           </h2>
           <div className="space-y-3">
-            <StatusBar label="Свободно" count={stats.rooms.available} total={stats.rooms.total} color="bg-emerald-500" />
-            <StatusBar label="Занято" count={stats.rooms.occupied} total={stats.rooms.total} color="bg-blue-500" />
-            <StatusBar label="Уборка" count={stats.rooms.cleaning} total={stats.rooms.total} color="bg-amber-500" />
+            {recentBookings.length === 0 && <p className="text-slate-400 text-sm">Нет бронирований</p>}
+            {recentBookings.map((b) => (
+              <div key={b.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                <div>
+                  <p className="font-medium">{b.guest_name}</p>
+                  <p className="text-xs text-slate-500">{b.check_in} → {b.check_out}</p>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full bg-slate-100">{b.status}</span>
+              </div>
+            ))}
           </div>
         </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-hotel-accent" /> Лидер рейтинга
-          </h2>
-          {stats.topEmployee ? (
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-2xl font-bold text-hotel-accent shadow-soft">
-                {stats.topEmployee.name.charAt(0)}
-              </div>
-              <div>
-                <p className="font-semibold text-lg text-slate-900 dark:text-white">{stats.topEmployee.name}</p>
-                <p className="text-slate-500 text-sm capitalize">{stats.topEmployee.role}</p>
-                <p className="text-slate-800 dark:text-slate-200 font-semibold mt-1">{stats.topEmployee.points} баллов <span className="text-slate-400 font-normal">• Ур. {stats.topEmployee.level}</span></p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-slate-400">Нет данных</p>
-          )}
-        </div>
-      </div>
-
-      {stats.inventoryLow > 0 && (
-        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-medium text-amber-900 dark:text-amber-200">Низкий запас инвентаря</p>
-            <p className="text-sm text-amber-800 dark:text-amber-300 mt-0.5">{stats.inventoryLow} позиций требуют пополнения.</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatCard({ icon, title, value, subtitle, accent }: any) {
-  const colors: Record<string, string> = {
-    emerald: 'bg-emerald-500',
-    blue: 'bg-blue-500',
-    amber: 'bg-amber-500',
-    violet: 'bg-violet-500',
-  };
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-soft p-5 hover:shadow-card transition-shadow">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{value}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
-        </div>
-        <div className={`${colors[accent]} text-white p-2.5 rounded-xl`}>{icon}</div>
-      </div>
-    </div>
-  );
-}
-
-function StatusBar({ label, count, total, color }: any) {
-  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1.5">
-        <span className="text-slate-600 dark:text-slate-400">{label}</span>
-        <span className="font-medium text-slate-900 dark:text-white">{count} <span className="text-slate-400 font-normal">({pct}%)</span></span>
-      </div>
-      <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
