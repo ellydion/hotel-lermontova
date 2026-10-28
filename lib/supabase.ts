@@ -16,7 +16,7 @@ export const supabase: SupabaseClient = isDemo
 export type Room = {
   id: string;
   number: string;
-  type: 'standard' | 'deluxe' | 'suite' | 'family';
+  type: 'standard' | 'lux' | 'family_lux' | 'penta_lux' | 'deluxe' | 'suite' | 'family';
   status: 'available' | 'occupied' | 'cleaning' | 'maintenance';
   price_per_night: number;
   capacity: number;
