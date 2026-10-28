@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, Employee } from '@/lib/supabase';
-import { Trophy, Star, ShieldCheck, UserPlus } from 'lucide-react';
+import { Trophy, Star, ShieldCheck, UserPlus, Pencil } from 'lucide-react';
+import EmployeeEditor from '@/components/EmployeeEditor';
 import { PageHeader, Loading, useStaff } from '@/components/AppShell';
 import { ROLES, roleLabels, roleSections, canManageRoles, StaffRole } from '@/lib/roles';
 
@@ -22,6 +23,9 @@ function getLevelName(level: number) {
 export default function EmployeesPage() {
   const me = useStaff();
   const isAdmin = canManageRoles(me?.role);
+  const isManager = me?.role === 'manager';
+  const [editing, setEditing] = useState<{ emp: Employee; mode: 'admin' | 'manager' | 'self' } | null>(null);
+  const modeFor = (emp: Employee) => isAdmin ? 'admin' as const : isManager && emp.role !== 'admin' ? 'manager' as const : emp.id === me?.id ? 'self' as const : null;
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
@@ -52,6 +56,10 @@ export default function EmployeesPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Сотрудники" subtitle={isAdmin ? 'Роли и доступ персонала' : 'Рейтинг и геймификация персонала'} />
+      {editing && <EmployeeEditor emp={editing.emp} mode={editing.mode} onClose={() => setEditing(null)} onSaved={(m) => { setEditing(null); setMsg(m); load(); }} />}
+      {me && !isAdmin && (
+        <button onClick={() => { const self = employees.find((e) => e.id === me.id) || me; setEditing({ emp: self, mode: isManager ? 'manager' : 'self' }); }} className="card px-4 py-3 text-sm flex items-center gap-2 text-navy-900"><Pencil className="w-4 h-4" /> Мой профиль</button>
+      )}
       {msg && <p className="card px-4 py-3 text-sm text-navy-900">{msg}</p>}
 
       {isAdmin && (
@@ -64,11 +72,12 @@ export default function EmployeesPage() {
                   <div className="w-9 h-9 rounded-full bg-navy-900 text-white flex items-center justify-center font-semibold">{emp.name.charAt(0)}</div>
                   <div className="flex-1 min-w-[160px]">
                     <p className="font-medium text-navy-900">{emp.name}</p>
-                    <p className="text-xs text-slate-500">{emp.email || '—'} · {emp.auth_user_id ? 'вход привязан' : 'ещё не зарегистрирован'}</p>
+                    <p className="text-xs text-slate-500">{emp.position ? `${emp.position} · ` : ''}{emp.email || 'нет email'} · {emp.auth_user_id ? 'вход привязан' : 'ещё не зарегистрирован'}{emp.is_active === false ? ' · отключён' : ''}</p>
                   </div>
                   <select value={emp.role} onChange={(e) => changeRole(emp, e.target.value as StaffRole)} className="input w-auto py-2 text-sm">
                     {ROLES.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
                   </select>
+                  <button onClick={() => setEditing({ emp, mode: 'admin' })} className="p-2 rounded-lg border border-slate-200" aria-label="Редактировать профиль"><Pencil className="w-4 h-4" /></button>
                 </div>
               ))}
             </div>
@@ -114,7 +123,7 @@ export default function EmployeesPage() {
                   <p className="font-semibold text-lg">{emp.name}</p>
                   {idx === 0 && <Trophy className="w-5 h-5 text-amber-500" />}
                 </div>
-                <p className="text-sm text-slate-500">{roleLabels[emp.role] || emp.role}</p>
+                <p className="text-sm text-slate-500">{emp.position || roleLabels[emp.role] || emp.role}{emp.is_active === false ? ' · отключён' : ''}</p>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-gold-600 font-bold">{emp.points} баллов</span>
                   <span className="text-sm text-slate-500">Уровень {emp.level} • {getLevelName(emp.level)}</span>
@@ -126,6 +135,9 @@ export default function EmployeesPage() {
                   <span className="font-medium">{Math.floor(emp.points / 100)}</span>
                 </div>
                 <p className="text-xs text-slate-400">значков</p>
+                {!isAdmin && modeFor(emp) && modeFor(emp) !== 'self' && (
+                  <button onClick={() => setEditing({ emp, mode: modeFor(emp)! })} className="mt-2 text-xs text-gold-600 inline-flex items-center gap-1"><Pencil className="w-3 h-3" /> Изменить</button>
+                )}
               </div>
             </div>
           ))}

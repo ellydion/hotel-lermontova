@@ -15,6 +15,24 @@
 
 begin;
 
+-- ---------- Профиль сотрудника: должность и активность (существующие строки не меняются по смыслу: все активны) ----------
+alter table public.employees add column if not exists position text;
+alter table public.employees add column if not exists is_active boolean not null default true;
+
+-- Отключённый сотрудник теряет доступ: функции доступа учитывают is_active
+create or replace function public.current_employee_id()
+returns uuid language sql stable security definer set search_path = public as $$
+  select id from public.employees where auth_user_id = auth.uid() and is_active limit 1
+$$;
+create or replace function public.is_staff()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.employees where auth_user_id = auth.uid() and is_active)
+$$;
+create or replace function public.is_manager()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.employees where auth_user_id = auth.uid() and is_active and role in ('admin', 'manager'))
+$$;
+
 -- ---------- Таблицы ----------
 create table if not exists public.guests (
   id uuid primary key default uuid_generate_v4(),
@@ -45,7 +63,7 @@ create unique index if not exists loyalty_tx_stay_once on public.loyalty_transac
 -- ---------- Функции ролей ----------
 create or replace function public.current_role_name()
 returns text language sql stable security definer set search_path = public as $$
-  select role from public.employees where auth_user_id = auth.uid() limit 1
+  select role from public.employees where auth_user_id = auth.uid() and is_active limit 1
 $$;
 
 create or replace function public.has_role(roles text[])
@@ -94,15 +112,30 @@ drop trigger if exists on_auth_user_created_link on auth.users;
 create trigger on_auth_user_created_link after insert on auth.users
   for each row execute function public.link_new_auth_user();
 
--- ---------- Роль меняет только admin ----------
+-- ---------- Правка профиля: роль/привязку — только admin; служебные поля — admin/manager; сам себе — только контакты ----------
 create or replace function public.guard_employee_role()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  -- pg_trigger_depth() > 1: изменение пришло из триггера (начисление баллов за задание)
+  privileged boolean := coalesce(auth.role(), 'service_role') = 'service_role' or pg_trigger_depth() > 1;
 begin
-  if new.role is distinct from old.role and not public.has_role(array['admin']) and coalesce(auth.role(), 'service_role') <> 'service_role' then
+  if privileged or public.has_role(array['admin']) then
+    return new;
+  end if;
+  if new.role is distinct from old.role then
     raise exception 'Менять роль может только администратор';
   end if;
-  if new.auth_user_id is distinct from old.auth_user_id and not public.has_role(array['admin']) and coalesce(auth.role(), 'service_role') <> 'service_role' then
+  if new.auth_user_id is distinct from old.auth_user_id then
     raise exception 'Привязку входа меняет только администратор';
+  end if;
+  if old.role = 'admin' then
+    raise exception 'Профиль администратора меняет только администратор';
+  end if;
+  if not public.is_manager() and (
+       new.email is distinct from old.email or new.position is distinct from old.position
+    or new.is_active is distinct from old.is_active or new.points is distinct from old.points
+    or new.level is distinct from old.level) then
+    raise exception 'Сотрудник может менять только свои контакты (имя, телефон, фото)';
   end if;
   return new;
 end $$;
@@ -213,7 +246,8 @@ commit;
 --        where lower(u.email) = lower(e.email) and e.auth_user_id is null;
 --   3) Auth → оставить регистрацию включённой (её используют гости); сотрудник получит доступ
 --      только если его email заранее добавлен админом в «Сотрудники».
--- ОТКАТ: drop trigger on_auth_user_created_link on auth.users; drop trigger employees_guard_role on public.employees;
+-- ОТКАТ: (колонки employees.position/is_active можно оставить — они безвредны)
+--   drop trigger on_auth_user_created_link on auth.users; drop trigger employees_guard_role on public.employees;
 --   drop trigger tasks_award_points on public.tasks; drop table public.loyalty_transactions; 
 --   alter table public.bookings drop column guest_id; drop table public.guests; (+ вернуть политики из rls.sql)
 -- =====================================================================

@@ -35,6 +35,8 @@ export type Employee = {
   level: number;
   avatar_url: string | null;
   phone: string | null;
+  position?: string | null;
+  is_active?: boolean;
 };
 
 export type InventoryItem = {
