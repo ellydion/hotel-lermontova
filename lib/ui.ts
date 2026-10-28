@@ -13,7 +13,9 @@ export const bookingStatus: Record<string, { label: string; cls: string }> = {
 };
 
 export const roomType: Record<string, string> = {
-  standard: 'Стандарт', deluxe: 'Делюкс', suite: 'Люкс', family: 'Семейный',
+  standard: 'Стандарт', lux: 'Люкс', family_lux: 'Семейный люкс', penta_lux: 'Пента-люкс',
+  // устаревшие типы (не используются)
+  deluxe: 'Делюкс (устар.)', suite: 'Сюит (устар.)', family: 'Семейный (устар.)',
 };
 
 export const todayISO = () => {
