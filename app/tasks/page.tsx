@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { supabase, Task, Employee } from '@/lib/supabase';
 import { CheckCircle, Clock, Play } from 'lucide-react';
+import { PageHeader, Loading, useStaff } from '@/components/AppShell';
+import { roleTaskTypes } from '@/lib/roles';
 
 const typeLabels: Record<string, string> = {
   cleaning: 'Уборка',
@@ -11,6 +13,7 @@ const typeLabels: Record<string, string> = {
   maintenance: 'Ремонт',
   inventory: 'Инвентарь',
   other: 'Другое',
+  daily: 'Ежедневное',
 };
 
 const statusIcons: Record<string, any> = {
@@ -23,6 +26,9 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const me = useStaff();
+  const types = me ? roleTaskTypes[me.role] : null;
+  const limited = !!types; // горничная / техник: только свои типы заданий, без назначения других
 
   const load = async () => {
     setLoading(true);
@@ -30,12 +36,13 @@ export default function TasksPage() {
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
       supabase.from('employees').select('*'),
     ]);
-    setTasks(tasksRes.data || []);
+    setTasks(((tasksRes.data as Task[]) || []).filter((t) => !types || types.includes(t.type)));
     setEmployees((empRes.data as Employee[]) || []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [me?.role]);
 
   const completeTask = async (task: Task) => {
     if (!task.employee_id) {
@@ -43,12 +50,7 @@ export default function TasksPage() {
       return;
     }
     await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', task.id);
-    const emp = employees.find(e => e.id === task.employee_id);
-    if (emp) {
-      const newPoints = emp.points + task.points;
-      const newLevel = Math.floor(newPoints / 100) + 1;
-      await supabase.from('employees').update({ points: newPoints, level: newLevel }).eq('id', emp.id);
-    }
+    // баллы сотруднику начисляет триггер tasks_award_points в базе (миграция 2026-10-28)
     load();
   };
 
@@ -58,21 +60,19 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-hotel-900">Задания и геймификация</h1>
-        <p className="text-slate-600">Выполняйте задания и получайте баллы</p>
-      </div>
+    <div className="space-y-5">
+      <PageHeader title={me?.role === 'housekeeping' ? 'Уборка' : me?.role === 'maintenance' ? 'Ремонт' : 'Задания'}
+        subtitle={limited ? 'Ваши задания и свободные задачи — берите и отмечайте выполненными' : 'Выполняйте задания и получайте баллы'} />
 
       {loading ? (
-        <div className="text-center py-12 text-slate-500">Загрузка...</div>
+        <Loading />
       ) : (
         <div className="space-y-4">
           {tasks.map(task => {
             const StatusIcon = statusIcons[task.status];
             const emp = employees.find(e => e.id === task.employee_id);
             return (
-              <div key={task.id} className="bg-white rounded-xl shadow p-5">
+              <div key={task.id} className="card p-5">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -81,17 +81,19 @@ export default function TasksPage() {
                       <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{typeLabels[task.type]}</span>
                     </div>
                     {task.description && <p className="text-sm text-slate-600 mt-1">{task.description}</p>}
-                    <p className="text-hotel-600 font-medium mt-2">+{task.points} баллов</p>
+                    <p className="text-gold-600 font-medium mt-2">+{task.points} баллов</p>
                     {emp && <p className="text-sm text-slate-500 mt-1">Исполнитель: {emp.name}</p>}
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     {task.status !== 'completed' && (
                       <>
-                        <select className="text-sm border rounded px-2 py-1" value={task.employee_id || ''} onChange={(e) => e.target.value && assign(task.id, e.target.value)}>
+                        {limited ? (
+                          !task.employee_id && me && <button onClick={() => assign(task.id, me.id)} className="px-4 py-1.5 border border-slate-200 text-sm rounded-xl">Взять себе</button>
+                        ) : <select className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-white" value={task.employee_id || ''} onChange={(e) => e.target.value && assign(task.id, e.target.value)}>
                           <option value="">Назначить</option>
                           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                        </select>
-                        <button onClick={() => completeTask(task)} className="px-4 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Завершить</button>
+                        </select>}
+                        <button onClick={() => completeTask(task)} className="px-4 py-1.5 bg-navy-900 text-white text-sm rounded-xl hover:bg-navy-800">Завершить</button>
                       </>
                     )}
                     {task.status === 'completed' && <span className="text-emerald-600 text-sm font-medium">Выполнено</span>}

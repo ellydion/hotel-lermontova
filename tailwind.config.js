@@ -1,34 +1,16 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class',
-  content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+  content: ['./app/**/*.{js,ts,jsx,tsx,mdx}', './components/**/*.{js,ts,jsx,tsx,mdx}', './lib/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        hotel: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          accent: '#c9a227',
-          'accent-light': '#e8d5a3',
-        },
+        navy: { 700: '#2c3b5e', 800: '#25324f', 900: '#1f2a44', 950: '#161e31' },
+        gold: { 50: '#fbf7ee', 100: '#f4ead3', 200: '#e9d6a8', 400: '#c9a24a', 500: '#b08a35', 600: '#8f6f28' },
+        hotel: { 600: '#475569', 700: '#334155', 900: '#0f172a' },
       },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
       boxShadow: {
-        soft: '0 4px 20px -2px rgba(15, 23, 42, 0.08)',
-        card: '0 10px 40px -10px rgba(15, 23, 42, 0.12)',
+        soft: '0 1px 2px rgba(31,42,68,0.04), 0 4px 16px -4px rgba(31,42,68,0.08)',
       },
     },
   },

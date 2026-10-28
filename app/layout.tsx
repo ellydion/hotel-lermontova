@@ -1,37 +1,18 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { Nav } from '@/components/Nav';
+import { AppShell } from '@/components/AppShell';
 
 export const metadata: Metadata = {
   title: 'Отель Лермонтова',
-  description: 'Система управления отелем: номера, сотрудники, инвентарь и геймификация',
+  description: 'Система управления отелем: номера, брони, сотрудники, инвентарь и задания',
 };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#1f2a44' };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.classList.add('dark');
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
+    <html lang="ru">
       <body className="min-h-screen antialiased">
-        <Nav />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">{children}</main>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
