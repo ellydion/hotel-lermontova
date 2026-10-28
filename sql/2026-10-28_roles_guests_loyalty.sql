@@ -98,10 +98,10 @@ create trigger on_auth_user_created_link after insert on auth.users
 create or replace function public.guard_employee_role()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if new.role is distinct from old.role and not public.has_role(array['admin']) and auth.role() <> 'service_role' then
+  if new.role is distinct from old.role and not public.has_role(array['admin']) and coalesce(auth.role(), 'service_role') <> 'service_role' then
     raise exception 'Менять роль может только администратор';
   end if;
-  if new.auth_user_id is distinct from old.auth_user_id and not public.has_role(array['admin']) and auth.role() <> 'service_role' then
+  if new.auth_user_id is distinct from old.auth_user_id and not public.has_role(array['admin']) and coalesce(auth.role(), 'service_role') <> 'service_role' then
     raise exception 'Привязку входа меняет только администратор';
   end if;
   return new;
@@ -188,7 +188,9 @@ create policy guests_select on public.guests for select to authenticated
 create policy guests_staff_write on public.guests for all to authenticated
   using (public.has_role(array['admin','manager','receptionist']))
   with check (public.has_role(array['admin','manager','receptionist']));
-revoke update (points) on public.guests from authenticated;
+-- колоночный revoke не работает при табличном UPDATE: снимаем UPDATE целиком и даём только безопасные колонки
+revoke update on public.guests from authenticated;
+grant update (name, email, phone, auth_user_id) on public.guests to authenticated;
 
 -- loyalty_transactions: читает фронт-офис и сам гость; пишет только фронт-офис; не правится и не удаляется
 drop policy if exists loyalty_select on public.loyalty_transactions;
@@ -202,7 +204,9 @@ commit;
 
 -- =====================================================================
 -- ПОСЛЕ применения:
---   1) назначить хотя бы одного admin (service_role / SQL Editor):
+--   1) назначить хотя бы одного admin (service_role / SQL Editor). В БД на 28.10.2026 admin НЕТ,
+--      владельца среди сотрудников нет — если его нет, сначала:
+--      insert into public.employees(name, email, role) values ('<имя>', '<email владельца>', 'admin');
 --      update public.employees set role = 'admin' where email = '<email владельца>';
 --   2) привязать уже существующих пользователей Auth:
 --      update public.employees e set auth_user_id = u.id from auth.users u

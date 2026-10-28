@@ -82,6 +82,7 @@ alter table public.achievements          enable row level security;
 alter table public.employee_achievements enable row level security;
 
 -- ---------- rooms: сотрудники читают и меняют статус; создают/удаляют — admin/manager ----------
+drop policy if exists "Allow all for anon" on public.rooms;  -- старая политика в живой БД
 drop policy if exists rooms_select on public.rooms;
 drop policy if exists rooms_update on public.rooms;
 drop policy if exists rooms_insert on public.rooms;
