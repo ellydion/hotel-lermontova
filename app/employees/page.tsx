@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, Employee } from '@/lib/supabase';
-import { Trophy, Star } from 'lucide-react';
-import { PageHeader, Loading } from '@/components/AppShell';
+import { Trophy, Star, ShieldCheck, UserPlus } from 'lucide-react';
+import { PageHeader, Loading, useStaff } from '@/components/AppShell';
+import { ROLES, roleLabels, roleSections, canManageRoles, StaffRole } from '@/lib/roles';
 
-const roleLabels: Record<string, string> = {
-  admin: 'Администратор',
-  receptionist: 'Ресепшен',
-  housekeeping: 'Горничная',
-  maintenance: 'Техник',
-  manager: 'Менеджер',
+const sectionNames: Record<string, string> = {
+  '/': 'Сегодня', '/rooms': 'Номера', '/bookings': 'Брони', '/guests': 'Гости',
+  '/tasks': 'Задания', '/employees': 'Сотрудники', '/inventory': 'Инвентарь',
 };
 
 function getLevelName(level: number) {
@@ -22,22 +20,85 @@ function getLevelName(level: number) {
 }
 
 export default function EmployeesPage() {
+  const me = useStaff();
+  const isAdmin = canManageRoles(me?.role);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState('');
+  const [form, setForm] = useState({ name: '', email: '', role: 'housekeeping' as StaffRole });
 
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase.from('employees').select('*').order('points', { ascending: false });
-      setEmployees(data || []);
-      setLoading(false);
-    }
+  const load = async () => {
+    const { data } = await supabase.from('employees').select('*').order('points', { ascending: false });
+    setEmployees((data as Employee[]) || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const changeRole = async (emp: Employee, role: StaffRole) => {
+    if (emp.id === me?.id && role !== 'admin') { setMsg('Нельзя снять роль администратора с самого себя'); return; }
+    const { error } = await supabase.from('employees').update({ role }).eq('id', emp.id);
+    setMsg(error ? `Ошибка: ${error.message}` : `${emp.name}: роль «${roleLabels[role]}»`);
     load();
-  }, []);
+  };
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error } = await supabase.from('employees').insert({ name: form.name, email: form.email.trim().toLowerCase(), role: form.role });
+    setMsg(error ? `Ошибка: ${error.message}` : `Добавлен(а) ${form.name}. Войти сможет после регистрации с этим email.`);
+    setForm({ name: '', email: '', role: 'housekeeping' });
+    load();
+  };
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Сотрудники" subtitle="Рейтинг и геймификация персонала" />
+      <PageHeader title="Сотрудники" subtitle={isAdmin ? 'Роли и доступ персонала' : 'Рейтинг и геймификация персонала'} />
+      {msg && <p className="card px-4 py-3 text-sm text-navy-900">{msg}</p>}
 
+      {isAdmin && (
+        <div className="grid lg:grid-cols-[1fr_340px] gap-5">
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-4"><ShieldCheck className="w-5 h-5 text-gold-600" /><h2 className="font-semibold text-navy-900">Управление ролями</h2></div>
+            <div className="divide-y divide-slate-100">
+              {employees.map((emp) => (
+                <div key={emp.id} className="py-3 flex flex-wrap items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-navy-900 text-white flex items-center justify-center font-semibold">{emp.name.charAt(0)}</div>
+                  <div className="flex-1 min-w-[160px]">
+                    <p className="font-medium text-navy-900">{emp.name}</p>
+                    <p className="text-xs text-slate-500">{emp.email || '—'} · {emp.auth_user_id ? 'вход привязан' : 'ещё не зарегистрирован'}</p>
+                  </div>
+                  <select value={emp.role} onChange={(e) => changeRole(emp, e.target.value as StaffRole)} className="input w-auto py-2 text-sm">
+                    {ROLES.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-5">
+            <form onSubmit={add} className="card p-5 space-y-3">
+              <div className="flex items-center gap-2"><UserPlus className="w-5 h-5 text-gold-600" /><h2 className="font-semibold text-navy-900">Новый сотрудник</h2></div>
+              <input className="input" placeholder="Имя" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <input className="input" type="email" placeholder="Email для входа" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as StaffRole })}>
+                {ROLES.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+              </select>
+              <button className="btn-primary w-full py-2.5">Добавить</button>
+            </form>
+            <div className="card p-5">
+              <h2 className="font-semibold text-navy-900 mb-3">Что видит каждая роль</h2>
+              <div className="space-y-2.5 text-sm">
+                {ROLES.map((r) => (
+                  <div key={r}>
+                    <p className="font-medium text-navy-900">{roleLabels[r]}</p>
+                    <p className="text-xs text-slate-500">{roleSections[r].map((s) => sectionNames[s]).join(' · ')}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <h2 className="font-semibold text-navy-900">Рейтинг</h2>
       {loading ? (
         <Loading />
       ) : (

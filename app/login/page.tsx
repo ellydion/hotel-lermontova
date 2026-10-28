@@ -70,6 +70,7 @@ export default function LoginPage() {
               </button>
             </form>
             {message && <p className="mt-4 text-center text-sm text-slate-600">{message}</p>}
+            <a href="/guest/login" className="block text-center mt-4 text-sm text-slate-500 hover:underline">Я гость отеля →</a>
             <button onClick={() => setIsSignUp(!isSignUp)} className="w-full mt-5 text-sm text-gold-600 hover:underline">
               {isSignUp ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться'}
             </button>

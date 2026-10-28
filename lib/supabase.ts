@@ -71,6 +71,7 @@ export type Booking = {
   status: string;
   notes: string | null;
   created_at: string;
+  guest_id?: string | null;
 };
 
 export type Achievement = {

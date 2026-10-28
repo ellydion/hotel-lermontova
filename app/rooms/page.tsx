@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { RefreshCw, Users } from 'lucide-react';
 import { supabase, Room, Booking } from '@/lib/supabase';
-import { PageHeader, Loading } from '@/components/AppShell';
+import { PageHeader, Loading, useStaff } from '@/components/AppShell';
 import { roomStatus, roomType, fmtMoney, fmtDate } from '@/lib/ui';
 
 function RoomsBoard() {
@@ -15,18 +15,22 @@ function RoomsBoard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState(params.get('s') || 'all');
   const [floor, setFloor] = useState('all');
+  const me = useStaff();
+  // горничная и техник не видят брони/гостей — только статус номера
+  const seesGuests = !me || !['housekeeping', 'maintenance'].includes(me.role);
 
   const load = async () => {
     setLoading(true);
     const [r, b] = await Promise.all([
       supabase.from('rooms').select('*').order('number'),
-      supabase.from('bookings').select('*').eq('status', 'checked_in'),
+      seesGuests ? supabase.from('bookings').select('*').eq('status', 'checked_in') : Promise.resolve({ data: [] }),
     ]);
     setRooms((r.data as Room[]) || []);
     setStays((b.data as Booking[]) || []);
     setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [seesGuests]);
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('rooms').update({ status }).eq('id', id);
@@ -73,9 +77,9 @@ function RoomsBoard() {
                 <p className="text-xs text-slate-500 flex items-center gap-2">
                   {roomType[room.type] || room.type}
                   <span className="flex items-center gap-0.5"><Users className="w-3 h-3" />{room.capacity}</span>
-                  <span>· {fmtMoney(room.price_per_night)}/ночь</span>
+                  {seesGuests && <span>· {fmtMoney(room.price_per_night)}/ночь</span>}
                 </p>
-                {stay ? (
+                {!seesGuests ? <span className="text-sm text-slate-400">{room.status === 'occupied' ? 'Гость проживает' : '—'}</span> : stay ? (
                   <Link href={`/bookings/${stay.id}`} className="text-sm font-medium text-navy-900 truncate hover:underline">
                     {stay.guest_name}<span className="block text-xs font-normal text-slate-500">до {fmtDate(stay.check_out)}</span>
                   </Link>

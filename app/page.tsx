@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { LogIn, LogOut, Sparkles, Wrench, RefreshCw, ChevronRight } from 'lucide-react';
+import { awardStayPoints } from '@/lib/loyalty';
 import { supabase, Booking, Room } from '@/lib/supabase';
 import { PageHeader, Loading } from '@/components/AppShell';
 import { roomStatus, todayISO, initials, roomType } from '@/lib/ui';
@@ -26,6 +27,7 @@ export default function TodayPage() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('bookings').update({ status }).eq('id', id);
+    if (status === 'checked_out') await awardStayPoints(id);
     load();
   };
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Phone, Mail, LogIn, LogOut, Printer, XCircle, BedDouble, CalendarDays, StickyNote } from 'lucide-react';
+import { awardStayPoints } from '@/lib/loyalty';
 import { supabase, Booking, Room } from '@/lib/supabase';
 import { PageHeader, Loading } from '@/components/AppShell';
 import { bookingStatus, fmtMoney, initials, nights, roomType } from '@/lib/ui';
@@ -31,6 +32,7 @@ export default function BookingDetail() {
     if (!b) return;
     setBusy(true);
     await supabase.from('bookings').update({ status }).eq('id', b.id);
+    if (status === 'checked_out') await awardStayPoints(b.id);
     await load();
     setBusy(false);
   };
