@@ -13,7 +13,7 @@ import { canAccess, homeFor, roleLabels, roleSections } from '@/lib/roles';
 const StaffContext = createContext<Employee | null>(null);
 export const useStaff = () => useContext(StaffContext);
 
-const PUBLIC = (p: string) => p === '/login' || p.startsWith('/guest');
+const PUBLIC = (p: string) => p === '/login' || p === '/guest' || p.startsWith('/guest/'); // НЕ '/guests' — это раздел персонала
 
 const main = [
   { href: '/', label: 'Сегодня', icon: Sun },
