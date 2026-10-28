@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, InventoryItem } from '@/lib/supabase';
 import { AlertTriangle, Plus, Minus } from 'lucide-react';
+import { PageHeader, Loading } from '@/components/AppShell';
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -28,11 +29,8 @@ export default function InventoryPage() {
   const lowStock = items.filter(i => i.quantity <= i.min_quantity);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-hotel-900">Инвентарь</h1>
-        <p className="text-slate-600">Учет расходных материалов и оборудования</p>
-      </div>
+    <div className="space-y-5">
+      <PageHeader title="Инвентарь" subtitle="Учёт расходных материалов и оборудования" />
 
       {lowStock.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -41,11 +39,11 @@ export default function InventoryPage() {
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-slate-500">Загрузка...</div>
+        <Loading />
       ) : (
-        <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50 text-left text-sm text-slate-600">
+            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-6 py-3">Название</th>
                 <th className="px-6 py-3">Категория</th>

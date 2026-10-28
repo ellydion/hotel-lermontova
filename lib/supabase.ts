@@ -1,9 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createDemoClient } from './demo';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// DEV-ONLY: NEXT_PUBLIC_DEMO_MODE=1 in local `next dev` swaps Supabase for in-memory demo data
+// (used for layout screenshots). It is ignored in production builds.
+export const isDemo =
+  process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_DEMO_MODE === '1';
+
+export const supabase: SupabaseClient = isDemo
+  ? (createDemoClient() as unknown as SupabaseClient)
+  : createClient(supabaseUrl, supabaseAnonKey);
 
 export type Room = {
   id: string;
